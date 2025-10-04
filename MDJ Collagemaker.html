@@ -1,0 +1,542 @@
+<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MidJourney Collage Maker - 8 Image Grid (2:3 Ratio)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9f9;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8e8ff;
+            transform: scale(1.02);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            display: block;
+        }
+        
+        .canvas-container {
+            margin: 30px 0;
+            text-align: center;
+            display: none;
+        }
+        
+        .canvas-container.show {
+            display: block;
+        }
+        
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .image-slots {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .slot {
+            padding: 10px;
+            border-radius: 8px;
+            background: #f0f0f0;
+            text-align: center;
+        }
+        
+        .slot.filled {
+            background: #e8f5e9;
+        }
+        
+        .slot-title {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        
+        .slot-filename {
+            font-size: 0.75em;
+            color: #888;
+            word-break: break-all;
+        }
+        
+        .instructions {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+            color: #666;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+        
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .category-item {
+            padding: 5px;
+            background: #e8e8e8;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.85em;
+            color: #555;
+        }
+        
+        .output-info {
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            color: #666;
+        }
+    </style>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+<body>
+    <div class="container">
+        <h1>🎨 MidJourney Collage Maker - 2:3 Ratio</h1>
+        <p class="subtitle">Create seamless 4×2 grid collages with 8 images</p>
+        
+        <div class="instructions">
+            <h3>📋 How it works:</h3>
+            <ul>
+                <li>Upload 8 images (2:3 ratio) - they'll be automatically positioned based on keywords in filenames</li>
+                <li>Images will be arranged in a 4 columns × 2 rows grid with no gaps</li>
+                <li>Final output will be a seamless collage optimized for 2:3 ratio images</li>
+                <li>Right-click the final collage to save it</li>
+            </ul>
+            <div style="margin-top: 15px;">
+                <strong>Keyword Detection Order:</strong>
+                <div class="category-grid">
+                    <div class="category-item">1. Portrait</div>
+                    <div class="category-item">2. Landscape</div>
+                    <div class="category-item">3. Still Life</div>
+                    <div class="category-item">4. Coffee</div>
+                    <div class="category-item">5. Tree</div>
+                    <div class="category-item">6. House</div>
+                    <div class="category-item">7. Animal</div>
+                    <div class="category-item">8. Street Scene</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-text">📁 Drop 8 images here or click to select</div>
+            <div class="upload-hint">Files should contain keywords: portrait, landscape, still life, coffee, tree, house, animal, street scene</div>
+            <input type="file" id="fileInput" class="file-input" multiple="" accept="image/*">
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="image-slots" id="imageSlots">
+            <div class="slot" data-position="1">
+                <div class="slot-title">Position 1: Portrait</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="2">
+                <div class="slot-title">Position 2: Landscape</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="3">
+                <div class="slot-title">Position 3: Still Life</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="4">
+                <div class="slot-title">Position 4: Coffee</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="5">
+                <div class="slot-title">Position 5: Tree</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="6">
+                <div class="slot-title">Position 6: House</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="7">
+                <div class="slot-title">Position 7: Animal</div>
+                <div class="slot-filename">-</div>
+            </div>
+            <div class="slot" data-position="8">
+                <div class="slot-title">Position 8: Street Scene</div>
+                <div class="slot-filename">-</div>
+            </div>
+        </div>
+        
+        <div class="output-info">
+            Output dimensions: 1200×900 pixels (4 columns of 300px × 2 rows of 450px, each image 2:3 ratio)
+        </div>
+        
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="collageCanvas"></canvas>
+            <div class="controls">
+                <button class="btn" onclick="downloadCollage()">💾 Download Collage</button>
+                <button class="btn" onclick="resetCollage()">🔄 Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvas = document.getElementById('collageCanvas');
+        const ctx = canvas.getContext('2d');
+        const imageSlots = document.getElementById('imageSlots');
+        
+        let loadedImages = {};
+        
+        // Keyword mappings for each position - ordered as specified
+        const positionKeywords = {
+            1: ['portrait', 'face', 'person', 'profile', 'headshot', 'selfie'],
+            2: ['landscape', 'scenery', 'vista', 'panorama', 'nature', 'outdoor'],
+            3: ['still life', 'stilllife', 'still-life', 'object', 'arrangement', 'composition'],
+            4: ['coffee', 'cafe', 'espresso', 'latte', 'cappuccino', 'brew'],
+            5: ['tree', 'forest', 'wood', 'branch', 'foliage', 'leaves'],
+            6: ['house', 'home', 'building', 'architecture', 'residence', 'cottage'],
+            7: ['animal', 'creature', 'pet', 'wildlife', 'beast', 'fauna'],
+            8: ['street scene', 'streetscene', 'street-scene', 'urban', 'city', 'street', 'downtown']
+        };
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function findPosition(filename) {
+            const lowerFilename = filename.toLowerCase();
+            
+            // Check each position's keywords
+            for (let position in positionKeywords) {
+                for (let keyword of positionKeywords[position]) {
+                    // Replace hyphens with spaces for matching
+                    const normalizedKeyword = keyword.replace(/-/g, ' ');
+                    const normalizedFilename = lowerFilename.replace(/[-_]/g, ' ');
+                    
+                    if (normalizedFilename.includes(normalizedKeyword) || lowerFilename.includes(keyword)) {
+                        return parseInt(position);
+                    }
+                }
+            }
+            return null;
+        }
+        
+        function handleFiles(files) {
+            if (files.length !== 8) {
+                showStatus(`Please select exactly 8 images (you selected ${files.length})`, 'error');
+                return;
+            }
+            
+            loadedImages = {};
+            let assignments = [];
+            let unassigned = [];
+            let usedPositions = new Set();
+            
+            // Reset slots
+            document.querySelectorAll('.slot').forEach(slot => {
+                slot.classList.remove('filled');
+                slot.querySelector('.slot-filename').textContent = '-';
+            });
+            
+            // First pass: assign images based on keywords
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) {
+                    showStatus('All files must be images', 'error');
+                    return;
+                }
+                
+                const position = findPosition(file.name);
+                if (position && !usedPositions.has(position)) {
+                    loadedImages[position] = file;
+                    usedPositions.add(position);
+                    assignments.push(`${file.name} → Position ${position}`);
+                    
+                    // Update slot display
+                    const slot = document.querySelector(`.slot[data-position="${position}"]`);
+                    slot.classList.add('filled');
+                    slot.querySelector('.slot-filename').textContent = file.name;
+                } else {
+                    unassigned.push(file);
+                }
+            });
+            
+            // Second pass: fill empty positions with unassigned images
+            for (let i = 1; i <= 8; i++) {
+                if (!usedPositions.has(i) && unassigned.length > 0) {
+                    const file = unassigned.shift();
+                    loadedImages[i] = file;
+                    usedPositions.add(i);
+                    assignments.push(`${file.name} → Position ${i} (auto-assigned)`);
+                    
+                    const slot = document.querySelector(`.slot[data-position="${i}"]`);
+                    slot.classList.add('filled');
+                    slot.querySelector('.slot-filename').textContent = file.name;
+                }
+            }
+            
+            if (Object.keys(loadedImages).length === 8) {
+                showStatus('Images loaded successfully! Creating collage...', 'success');
+                createCollage();
+            } else {
+                showStatus('Could not assign all images to positions', 'error');
+            }
+        }
+        
+        function createCollage() {
+            // Canvas dimensions for 4x2 grid of 2:3 images
+            // Each image: 300px wide × 450px tall (2:3 ratio)
+            // Total: 1200px wide × 900px tall
+            const imageWidth = 300;
+            const imageHeight = 450;
+            const canvasWidth = imageWidth * 4;  // 1200px
+            const canvasHeight = imageHeight * 2; // 900px
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Define positions for 4x2 grid
+            const positions = [
+                // Top row (positions 1-4)
+                { x: 0, y: 0 },
+                { x: imageWidth, y: 0 },
+                { x: imageWidth * 2, y: 0 },
+                { x: imageWidth * 3, y: 0 },
+                // Bottom row (positions 5-8)
+                { x: 0, y: imageHeight },
+                { x: imageWidth, y: imageHeight },
+                { x: imageWidth * 2, y: imageHeight },
+                { x: imageWidth * 3, y: imageHeight }
+            ];
+            
+            let imagesLoaded = 0;
+            const totalImages = 8;
+            
+            for (let i = 1; i <= totalImages; i++) {
+                if (loadedImages[i]) {
+                    const img = new Image();
+                    const pos = positions[i - 1];
+                    
+                    img.onload = function() {
+                        // Calculate scaling to cover the area completely
+                        const scale = Math.max(imageWidth / img.width, imageHeight / img.height);
+                        const scaledWidth = img.width * scale;
+                        const scaledHeight = img.height * scale;
+                        
+                        // Center the image in its slot
+                        const offsetX = (imageWidth - scaledWidth) / 2;
+                        const offsetY = (imageHeight - scaledHeight) / 2;
+                        
+                        // Save context state
+                        ctx.save();
+                        
+                        // Clip to the exact image area
+                        ctx.beginPath();
+                        ctx.rect(pos.x, pos.y, imageWidth, imageHeight);
+                        ctx.clip();
+                        
+                        // Draw the image
+                        ctx.drawImage(img, 
+                            pos.x + offsetX, 
+                            pos.y + offsetY, 
+                            scaledWidth, 
+                            scaledHeight
+                        );
+                        
+                        // Restore context state
+                        ctx.restore();
+                        
+                        imagesLoaded++;
+                        if (imagesLoaded === totalImages) {
+                            canvasContainer.classList.add('show');
+                            showStatus('Collage created successfully! Right-click to save.', 'success');
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        showStatus(`Error loading image: ${loadedImages[i].name}`, 'error');
+                    };
+                    
+                    img.src = URL.createObjectURL(loadedImages[i]);
+                }
+            }
+        }
+        
+        function downloadCollage() {
+            const link = document.createElement('a');
+            link.download = `collage_2x3_grid_${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        }
+        
+        function resetCollage() {
+            loadedImages = {};
+            canvasContainer.classList.remove('show');
+            fileInput.value = '';
+            status.style.display = 'none';
+            
+            document.querySelectorAll('.slot').forEach(slot => {
+                slot.classList.remove('filled');
+                slot.querySelector('.slot-filename').textContent = '-';
+            });
+        }
+        
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+    </script>
+
+
+</body></html>
